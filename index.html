@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Exam Countdown</title>
+  <style>
+    body{
+      margin:0;
+      font-family:Inter,Segoe UI,Roboto,Arial;
+      background:#0f172a;
+      color:#e6eef8;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      min-height:100vh;
+      padding:12px;
+      box-sizing:border-box;
+    }
+    h1{
+      margin:8px 0 4px 0;
+      font-size:clamp(20px,3vw,26px);
+      text-align:center;
+    }
+    .muted{
+      color:#94a3b8;
+      font-size:clamp(12px,2vw,14px);
+      margin-bottom:12px;
+      text-align:center;
+    }
+    .card{
+      background:#1e293b;
+      border-radius:12px;
+      padding:14px;
+      box-shadow:0 4px 10px rgba(0,0,0,0.4);
+      width:100%;
+      max-width:420px;
+      box-sizing:border-box;
+    }
+    .exam{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:10px;
+      border-radius:10px;
+      background:rgba(255,255,255,0.05);
+      margin-bottom:6px;
+      flex-wrap:wrap;
+      gap:4px;
+      cursor:pointer;
+      transition:background 0.3s;
+    }
+    .exam:hover{
+      background:rgba(255,255,255,0.08);
+    }
+    .exam.highlight{
+      border:1px solid #7c3aed;
+      background:rgba(124,58,237,0.1);
+    }
+    .exam h3{
+      margin:0;
+      font-size:15px;
+    }
+    .exam .date{
+      font-size:13px;
+      color:#94a3b8;
+    }
+    .exam .days{
+      font-weight:bold;
+      font-size:14px;
+    }
+    .summary{
+      margin-top:10px;
+      background:#1e293b;
+      border-radius:12px;
+      padding:12px;
+      width:100%;
+      max-width:420px;
+      text-align:center;
+      box-sizing:border-box;
+    }
+    .summary strong{
+      font-size:clamp(18px,4vw,22px);
+      display:block;
+      margin-bottom:4px;
+    }
+    @media (min-width:768px){
+      .cards-container{
+        display:flex;
+        gap:16px;
+        align-items:flex-start;
+        justify-content:center;
+        width:100%;
+        max-width:900px;
+      }
+      .card,.summary{
+        flex:1;
+      }
+    }
+    /* Modal styling */
+    .modal-bg{
+      position:fixed;
+      top:0;left:0;right:0;bottom:0;
+      background:rgba(0,0,0,0.7);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:10;
+      animation:fadeIn 0.3s ease forwards;
+    }
+    .modal{
+      background:#1e293b;
+      padding:20px;
+      border-radius:12px;
+      width:90%;
+      max-width:350px;
+      box-shadow:0 6px 15px rgba(0,0,0,0.5);
+      text-align:center;
+      animation:scaleIn 0.3s ease forwards;
+    }
+    .modal h2{
+      margin-top:0;
+      color:#e2e8f0;
+    }
+    .modal p{
+      margin:6px 0;
+      color:#cbd5e1;
+    }
+    .modal button{
+      background:#7c3aed;
+      color:white;
+      border:none;
+      border-radius:8px;
+      padding:8px 16px;
+      margin-top:12px;
+      cursor:pointer;
+    }
+    @keyframes fadeIn{
+      from{opacity:0;}to{opacity:1;}
+    }
+    @keyframes scaleIn{
+      from{transform:scale(0.9);opacity:0;}to{transform:scale(1);opacity:1;}
+    }
+  </style>
+</head>
+<body>
+  <h1>Exam Countdown</h1>
+  <div class="muted">Days left and preparation gaps between your fixed exam dates</div>
+
+  <div class="cards-container">
+    <div class="card" id="examList"></div>
+    <div class="summary">
+      <div>Next Exam: <strong id="nextExam"></strong></div>
+      <div id="nextDays"></div>
+    </div>
+  </div>
+
+  <div class="modal-bg" id="modalBg">
+    <div class="modal" id="modal">
+      <h2 id="modalTitle"></h2>
+      <p id="modalDate"></p>
+      <p id="modalDaysLeft"></p>
+      <p id="modalPrep"></p>
+      <button onclick="closeModal()">OK</button>
+    </div>
+  </div>
+
+  <script>
+    const exams = [
+      { date: '2025-11-19', name: 'OT' },
+      { date: '2025-11-24', name: 'UHV' },
+      { date: '2025-11-25', name: 'IPT' },
+      { date: '2025-12-03', name: 'DAA' },
+      { date: '2025-12-04', name: 'MCA' },
+      { date: '2025-12-08', name: 'FLAT' }
+    ];
+
+    const today = new Date();
+    const list = document.getElementById('examList');
+
+    function daysBetween(a,b){
+      const oneDay = 1000*60*60*24;
+      const am = Date.UTC(a.getFullYear(),a.getMonth(),a.getDate());
+      const bm = Date.UTC(b.getFullYear(),b.getMonth(),b.getDate());
+      return Math.round((bm-am)/oneDay);
+    }
+
+    let nextExam = null;
+
+    exams.forEach((ex,i)=>{
+      const examDate = new Date(ex.date);
+      const days = daysBetween(today, examDate);
+      const next = i < exams.length-1 ? daysBetween(examDate, new Date(exams[i+1].date)) : null;
+      const prev = i > 0 ? daysBetween(new Date(exams[i-1].date), examDate) : 0;
+
+      const div = document.createElement('div');
+      div.className = 'exam';
+      if(days >= 0 && !nextExam) {nextExam = {name: ex.name, days}; div.classList.add('highlight');}
+      div.innerHTML = `
+        <div>
+          <h3>${ex.name}</h3>
+          <div class='date'>${examDate.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}</div>
+        </div>
+        <div style='text-align:right'>
+          <div class='days'>${days} days</div>
+          ${next!==null ? `<div class='date'>+${next} days gap</div>`:''}
+        </div>
+      `;
+      div.addEventListener('click',()=>openModal(ex, examDate, days, prev));
+      list.appendChild(div);
+    });
+
+    if(nextExam){
+      document.getElementById('nextExam').textContent = `${nextExam.name}`;
+      document.getElementById('nextDays').textContent = `${nextExam.days} day(s) left`;
+    }
+
+    const modalBg = document.getElementById('modalBg');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalDate = document.getElementById('modalDate');
+    const modalDaysLeft = document.getElementById('modalDaysLeft');
+    const modalPrep = document.getElementById('modalPrep');
+
+    function openModal(exam, date, daysLeft, prepDays){
+      modalTitle.textContent = exam.name;
+      modalDate.textContent = `📅 Date: ${date.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'})}`;
+      modalDaysLeft.textContent = `⏳ ${daysLeft} day(s) left from today`;
+      modalPrep.textContent = prepDays>0 ? `🧠 ${prepDays} day(s) to prepare after previous exam` : `🧠 0 preparation days (first exam)`;
+      modalBg.style.display = 'flex';
+    }
+
+    function closeModal(){
+      modalBg.style.display = 'none';
+    }
+
+    modalBg.addEventListener('click',e=>{if(e.target===modalBg) closeModal();});
+  </script>
+</body>
+</html>
